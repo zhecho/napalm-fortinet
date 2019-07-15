@@ -13,17 +13,15 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-"""
-Napalm driver for Fortinet.
+""" Napalm driver for Fortinet.
+Read https://napalm.readthedocs.io for more information.  """
 
-Read https://napalm.readthedocs.io for more information.
-"""
 from netmiko import __version__ as netmiko_version
 from netmiko import ConnectHandler, FileTransfer, InLineTransfer
-
+import socket
 from napalm.base import NetworkDriver
-from napalm.base.exceptions import (
-    ConnectionException,
+from napalm.base.exceptions import ( 
+    ConnectionClosedException,
     SessionLockedException,
     MergeConfigException,
     ReplaceConfigException,
@@ -37,7 +35,8 @@ logger = logging.getLogger(__name__)
 class FortinetDriver(NetworkDriver):
     """Napalm driver for Fortinet."""
 
-    def __init__(self, hostname, username, password, timeout=60, optional_args=None):
+    def __init__(self, hostname, username, password, timeout=60,
+            optional_args=None):
         """Constructor."""
         self.device = None
         self.hostname = hostname
@@ -58,7 +57,8 @@ class FortinetDriver(NetworkDriver):
         # Check for proxy parameters and generate ssh config file
         if self.proxy_host:
             if self.proxy_port and self.proxy_username: 
-                print("Generate SSH proxy config file for hopping station: {}".format(self.proxy_host))
+                print("Generate SSH proxy config file for hopping station: {}"
+                        .format(self.proxy_host))
                 self.ssh_proxy_file = self._generate_ssh_proxy_file()
             else:
                 raise ValueError("All proxy options must be specified ")
@@ -119,7 +119,7 @@ class FortinetDriver(NetworkDriver):
 
 
     def open(self):
-        """Open a connection to the device."""
+        """ Open a connection to the device."""
         self.device = ConnectHandler(
                 device_type = 'fortinet',
                 host = self.hostname,
@@ -128,7 +128,7 @@ class FortinetDriver(NetworkDriver):
                 **self.netmiko_optional_args)
 
     def close(self):
-        """Close the connection to the device."""
+        """ Close the connection to the device."""
         self.device.disconnect()
 
 
@@ -162,5 +162,3 @@ class FortinetDriver(NetworkDriver):
             return output
         except (socket.error, EOFError) as e:
             raise ConnectionClosedException(str(e))
-
-
