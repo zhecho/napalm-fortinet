@@ -19,6 +19,7 @@ Read https://napalm.readthedocs.io for more information.  """
 from netmiko import __version__ as netmiko_version
 from netmiko import ConnectHandler, FileTransfer, InLineTransfer
 import socket
+import re
 from napalm.base import NetworkDriver
 from napalm.base.exceptions import ( 
     ConnectionClosedException,
@@ -31,6 +32,10 @@ from napalm.base.exceptions import (
 import logging
 
 logger = logging.getLogger(__name__)
+
+class FortinetCmdError(Exception):
+    pass
+
 
 class FortinetDriver(NetworkDriver):
     """Napalm driver for Fortinet."""
@@ -138,12 +143,15 @@ class FortinetDriver(NetworkDriver):
         cli_output = dict()
         if type(commands) is not list:
             raise TypeError('Please enter a valid list of commands!')
-        
+
         for command in commands:
             output = self._send_command(command)
-            if 'Command fail. Return code 1' in output:
-                raise ValueError(
-                    'Unable to execute command "{}"'.format(command))
+            unknown_action = re.match(r'Unknown action 0', output, re.M)
+            fail = re.match('\s+command parse error.*\s+Command fail', output, re.M)
+            if fail or unknown_action:
+                msg = f'Unable to execute command: {command}:\nOutput: {output}'
+                logger.error(msg)
+                # raise FortinetCmdError(msg)
             cli_output.setdefault(command, {})
             cli_output[command] = output
         return cli_output
@@ -155,7 +163,7 @@ class FortinetDriver(NetworkDriver):
             if isinstance(command, list):
                 for cmd in command:
                     output = self.device.send_command_timing(cmd)
-                    if 'Command fail. Return code 1' not in output:
+                    if 'Command fail. Return code' not in output:
                         break
             else:
                 output = self.device.send_command_timing(command)
